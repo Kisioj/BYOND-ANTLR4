@@ -221,23 +221,19 @@ PATH_LITERAL : '\'' (~["\\\r\n\f])* '\'';
 fragment SHORT_STRING : '"' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f"] )* '"';
 fragment LONG_STRING :  '{"' LONG_STRING_ITEM*? '"}';
 
-/// longstringitem  ::=  longstringchar | stringescapeseq
 fragment LONG_STRING_ITEM
  : LONG_STRING_CHAR
  | STRING_ESCAPE_SEQ
  ;
 
-/// longstringchar  ::=  <any source character except "\">
 fragment LONG_STRING_CHAR
  : ~'\\'
  ;
 
-/// stringescapeseq ::=  "\" <any source character>
 fragment STRING_ESCAPE_SEQ
  : '\\' .
  | '\\' NEWLINE
  ;
-
 
  NUMBER
  : INTEGER
