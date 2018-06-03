@@ -22,7 +22,7 @@ cd ..
 
   @Override
   public void emit(Token token) {
-    System.out.println("emit: " + token);
+    //System.out.println("emit: " + token);
     super.setToken(token);
     tokens.offer(token);
   }
@@ -49,7 +49,7 @@ cd ..
     Token next = super.nextToken();
     return tokens.isEmpty() ? next : tokens.poll();
   }
-  
+
   private CommonToken commonToken(int type, String text, int start) {
     int stop = start + text.length() - 1;
     return new CommonToken(this._tokenFactorySourcePair, type, DEFAULT_TOKEN_CHANNEL, start, stop);
@@ -97,7 +97,6 @@ NEWLINE
        int indent = spaces.length();
        int previous = indents.isEmpty() ? 0 : indents.peek();
        if (indent == previous) {
-         System.out.println("skip2");
          skip();
        }
        else if (indent > previous) {
@@ -118,18 +117,165 @@ NEWLINE
    }
  ;
 
-DATUM: 'datum' ;
-TURF: 'turf' ;
-ATOM : 'atom' ;
-MOB : 'mob' ;
-OBJ : 'obj' ;
-WORLD : 'world' ;
-PROC: 'proc' ;
-VERB: 'verb' ;
-VAR: 'var';
-TMP: 'tmp';
-NEW: 'new';
 
+/* BYOND reserved keywords */
+SWITCH : 'switch';
+IF : 'if';
+ELSE : 'else';
+FOR : 'for';
+WHILE : 'while';
+DO : 'do';
+BREAK : 'break';
+CONTINUE : 'continue';
+IN : 'in';
+
+VAR : 'var';
+CONST : 'const';
+
+DEL : 'del';
+RETURN : 'return';
+SET : 'set';
+TO : 'to';
+AS : 'as';
+GOTO : 'goto';
+NEW : 'new';
+SPAWN : 'spawn';
+
+TRY : 'try';
+CATCH : 'catch';
+
+/* BYOND not reserved keywords (for this grammar they will be reserved) */
+VERB : 'verb';
+PROC : 'proc';
+
+GLOBAL : 'global';
+STATIC : 'static';
+ARG : 'arg';
+TMP : 'tmp';
+
+
+/*  */
+OPEN_BRACK : '[' {opened++;};
+CLOSE_BRACK : ']' {opened--;};
+OPEN_PAREN : '(' {opened++;};
+CLOSE_PAREN : ')' {opened--;};
+DOT : '.';
+COMMA : ',';
+STAR : '*';
+PERCENT : '%';
+SLASH : '/';
+fragment BACKSLASH : '\\';
+COLON : ':';
+QUESTION_MARK : '?';
+
+NOT_OP : '~';
+NEG_OP : '!';
+MINUS : '-';
+PLUS : '+';
+INCREMENT : '++';
+DECREMENT : '--';
+
+POWER : '**';
+
+LESS_THAN : '<';
+GREATER_THAN : '>';
+LESS_THAN_OR_EQUAL : '<=';
+GREATER_THAN_OR_EQUAL : '>=';
+
+SHIFT_LEFT : '<<';
+SHIFT_RIGHT : '>>';
+
+EQUAL : '==';
+NOT_EQUAL : '!=';
+NOT_EQUAL_2 : '<>';
+
+BIT_AND : '&' ;
+BIT_OR : '|';
+BIT_XOR : '^' ;
+
+LOG_AND : '&&';
+LOG_OR : '||';
+
+ASSIGN : '=';
+ADD_ASSIGN : '+=';
+SUB_ASSIGN : '-=';
+MULT_ASSIGN : '*=';
+DIV_ASSIGN : '/=';
+MOD_ASSIGN : '%=';
+BIT_AND_ASSIGN : '&=';
+BIT_OR_ASSIGN : '|=';
+XOR_ASSIGN : '^=';
+LEFT_SHIFT_ASSIGN : '<<=';
+RIGHT_SHIFT_ASSIGN : '>>=';
+
+
+/* other */
+
+SEMICOLON : ';';
+
+IDENTIFIER: [_a-zA-Z][_a-zA-Z0-9]*;
+
+STRING_LITERAL : SHORT_STRING | LONG_STRING;
+PATH_LITERAL : '\'' (~["\\\r\n\f])* '\'';
+
+fragment SHORT_STRING : '"' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f"] )* '"';
+fragment LONG_STRING :  '{"' LONG_STRING_ITEM*? '"}';
+
+/// longstringitem  ::=  longstringchar | stringescapeseq
+fragment LONG_STRING_ITEM
+ : LONG_STRING_CHAR
+ | STRING_ESCAPE_SEQ
+ ;
+
+/// longstringchar  ::=  <any source character except "\">
+fragment LONG_STRING_CHAR
+ : ~'\\'
+ ;
+
+/// stringescapeseq ::=  "\" <any source character>
+fragment STRING_ESCAPE_SEQ
+ : '\\' .
+ | '\\' NEWLINE
+ ;
+
+
+ NUMBER
+ : INTEGER
+ | FLOAT_NUMBER
+ ;
+
+INTEGER
+ : DECIMAL_INTEGER
+ | HEX_INTEGER
+ ;
+
+DECIMAL_INTEGER : DIGIT+;
+HEX_INTEGER : '0x' HEX_DIGIT+ ;
+
+fragment DIGIT : [0-9];
+fragment HEX_DIGIT : [0-9a-fA-F];
+
+FLOAT_NUMBER
+ : POINT_FLOAT
+ | EXPONENT_FLOAT
+ ;
+
+fragment POINT_FLOAT
+ : INT_PART? FRACTION
+ | INT_PART '.'
+ ;
+
+fragment EXPONENT_FLOAT
+: INT_PART FRACTION? EXPONENT
+ ;
+
+fragment INT_PART : DIGIT+;
+fragment FRACTION : '.' DIGIT+;
+fragment EXPONENT : [eE] [+-]? DIGIT+;
+
+
+
+/* skip */
 SKIP_
  : ( SPACES | COMMENT ) -> skip
  ;
@@ -138,22 +284,17 @@ fragment SPACES
  : [ \t]+
  ;
 
-fragment COMMENT
- : '//' ~[\r\n\f]*
+
+COMMENT : INLINE_COMMENT | MULTILINE_COMMENT ;
+
+fragment INLINE_COMMENT
+ : '//' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f"] )*
  ;
 
-fragment DIGIT: [0-9] ;
-NUMBER_LITERAL: DIGIT+ ;
 
-OP_OUT : '<<' ;
-OP_ASSIGN : '=' ;
-OP_PATH : '/';
-
-IDENTIFIER: [_a-zA-Z][_a-zA-Z0-9]*;
-
-STRING_LITERAL : '"' (~["\\\r\n] | '\\' (. | EOF))* '"';
-BlockComment :   '/*' .*? '*/' -> skip;
-LineComment :   '//' ~[\r\n]* -> skip ;
+fragment MULTILINE_COMMENT
+ : '/*' .*? '*/'
+ ;
 
 
 UNKNOWN_CHAR
@@ -161,7 +302,7 @@ UNKNOWN_CHAR
  ;
 
 
-startRule: OP_PATH;
+startRule: SLASH;
 
 //startRule: (procDef | verbDef | objDef) + ;
 //startRule: objDef+ ;

@@ -1,8 +1,4 @@
 mob
 	var
-		hp = 100
-		mana = 20
-
-mob
-	var
-		dupa = 50
+		hp = 100 /*
+		*/ ;manz = 200
