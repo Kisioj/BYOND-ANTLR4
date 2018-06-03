@@ -15,15 +15,10 @@ cd ..
 @lexer::members {
   // A queue where extra tokens are pushed on (see the NEWLINE lexer rule).
   private java.util.LinkedList<Token> tokens = new java.util.LinkedList<>();
-
   // The stack that keeps track of the indentation level.
   private java.util.Stack<Integer> indents = new java.util.Stack<>();
   // The amount of opened braces, brackets and parenthesis.
   private int opened = 0;
-  // The most recently produced token.
-  private Token lastToken = null;
-
-  private int dupa=0;
 
   @Override
   public void emit(Token token) {
@@ -43,55 +38,27 @@ cd ..
         }
       }
 
-      // First emit an extra line break that serves as the end of the statement.
-      this.emit(commonToken(DMParser.NEWLINE, "\n"));
-
-      // Now emit as much DEDENT tokens as needed.
+      this.emit(commonToken(DMParser.NEWLINE));
       while (!indents.isEmpty()) {
-        this.emit(createDedent());
+        this.emit(commonToken(DMParser.DEDENT));
         indents.pop();
       }
-
-      // Put the EOF back on the token stream.
-      this.emit(commonToken(DMParser.EOF, "<EOF>"));
+      this.emit(commonToken(DMParser.EOF));
     }
 
     Token next = super.nextToken();
-
-    if (next.getChannel() == Token.DEFAULT_CHANNEL) {
-      // Keep track of the last token on the default channel.
-      this.lastToken = next;
-    }
-
     return tokens.isEmpty() ? next : tokens.poll();
   }
-
-
-
-  private Token createDedent() {
-    CommonToken dedent = commonToken(DMParser.DEDENT);
-    //dedent.setLine(this.lastToken.getLine());
-    return dedent;
-  }
-
-  private CommonToken commonToken(int type, String text) {
-    int stop = this.getCharIndex() - 1;
-    int start = text.isEmpty() ? stop : stop - text.length() + 1;
-    return new CommonToken(this._tokenFactorySourcePair, type, DEFAULT_TOKEN_CHANNEL, start, stop);
-  }
-
+  
   private CommonToken commonToken(int type, String text, int start) {
     int stop = start + text.length() - 1;
-    //System.out.println("commonToken: , start: " + start + ", stop: " + stop + ", char_index: " + this.getCharIndex() + ", type: " + type + ", text: " + text);
     return new CommonToken(this._tokenFactorySourcePair, type, DEFAULT_TOKEN_CHANNEL, start, stop);
   }
 
   private CommonToken commonToken(int type) {
     int start =  this.getCharIndex();
-    int stop = start;
-    //System.out.println("commonToken: , start: " + start + ", stop: " + stop + ", char_index: " + this.getCharIndex() + ", type: " + type);
+    int stop = start - 1;
     CommonToken token = new CommonToken(this._tokenFactorySourcePair, type, DEFAULT_TOKEN_CHANNEL, start, stop);
-    //token.setText("");
     return token;
   }
 
@@ -110,25 +77,21 @@ NEWLINE
    | ( '\r'? '\n' | '\r' | '\f' ) SPACES?
    )
    {
-
-
      String newLine = getText().replaceAll("[^\r\n\f]+", "");
      String spaces = getText().replaceAll("[\r\n\f]+", "");
      CommonToken ct;
-     //Token t = this._factory.create(this._tokenFactorySourcePair, this._type, this._text, this._channel, this._tokenStartCharIndex, this.getCharIndex() - 1, this._tokenStartLine, this._tokenStartCharPositionInLine);
 
      int next = _input.LA(1);
      if (opened > 0 || next == '\r' || next == '\n' || next == '\f' || next == '#') {
-       System.out.println("skip1");
        skip();
      }
      else {
-       int startIndex = this.getCharIndex() - getText().length();
-       int startIndexSpaces = this.getCharIndex() - spaces.length();
+       int startIndex = this._tokenStartCharIndex;
+       int startIndexSpaces = startIndex + newLine.length();
 
        ct = commonToken(DMParser.NEWLINE, newLine, startIndex);
        ct.setLine(this._tokenStartLine);
-       ct.setCharPositionInLine(this._tokenStartCharIndex);
+       ct.setCharPositionInLine(this._tokenStartCharPositionInLine);
        emit(ct);
 
        int indent = spaces.length();
@@ -158,9 +121,7 @@ NEWLINE
 DATUM: 'datum' ;
 TURF: 'turf' ;
 ATOM : 'atom' ;
-MOB : 'mob' {
-     System.out.println("super.getLine(): " + super.getLine() + ", " + super.getText());
-     };
+MOB : 'mob' ;
 OBJ : 'obj' ;
 WORLD : 'world' ;
 PROC: 'proc' ;
@@ -169,17 +130,8 @@ VAR: 'var';
 TMP: 'tmp';
 NEW: 'new';
 
-/*
 SKIP_
  : ( SPACES | COMMENT ) -> skip
- ;
-*/
-
-SKIP_
- : ( SPACES | COMMENT )
- {
-    skip();
- }
  ;
 
 fragment SPACES
@@ -189,8 +141,6 @@ fragment SPACES
 fragment COMMENT
  : '//' ~[\r\n\f]*
  ;
-
-
 
 fragment DIGIT: [0-9] ;
 NUMBER_LITERAL: DIGIT+ ;
