@@ -162,6 +162,9 @@ STATIC : 'static';
 ARG : 'arg';
 TMP : 'tmp';
 
+/* built-in functions*/
+//INPUT : 'input';
+
 
 /*  */
 OPEN_BRACK : '[' {opened++;};
@@ -308,13 +311,40 @@ UNKNOWN_CHAR
 
 
 /* parser rules */
-startRule: objDef *;
+startRule: (procDef | objDef) *;
 
+procDef: path OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT (varBlock|inlineVar)+ DEDENT;
 objDef: path NEWLINE INDENT (varBlock|inlineVar|funcOverride)+ DEDENT;
 
-funcOverride: IDENTIFIER OPEN_PAREN CLOSE_PAREN NEWLINE INDENT funcBlock DEDENT;
-funcBlock: (expression NEWLINE?)+;
-functionCall: dotPath OPEN_PAREN expression? CLOSE_PAREN;
+funcOverride: IDENTIFIER OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT funcBlock DEDENT;
+funcBlock: (expr NEWLINE?)+;
+
+/*
+ifBlock: (expr NEWLINE?)+;
+
+
+compound_stmt
+ : if_stmt
+ | while_stmt
+ | for_stmt
+ //| try_stmt
+ ;
+
+suite: stmt_list NEWLINE | NEWLINE INDENT statement+ DEDENT
+statement     ::=  stmt_list NEWLINE | compound_stmt
+stmt_list   simple_stmt (";" simple_stmt)* [";"]
+
+
+if_stmt: IF OPEN_PAREN expr CLOSE_PAREN suite (ELSE IF OPEN_PAREN expr CLOSE_PAREN suite)* (ELSE suite)?;
+
+
+suite:  stmt_list NEWLINE | NEWLINE INDENT statement+ DEDENT;
+
+*/
+
+functionCall: dotPath OPEN_PAREN arguments? CLOSE_PAREN asType? inList?;
+asType: AS IDENTIFIER;
+inList: IN expr;
 
 tmpsDecl: TMP '/'? variableDef+;
 varBlock:  VAR NEWLINE INDENT (tmpsDecl|variableDef)+ DEDENT;
@@ -322,9 +352,15 @@ inlineVar: VAR '/' variableDef;
 variableDef: leftSidePath? variableName (ASSIGN (constructorCall|value))? NEWLINE+;
 variableName: IDENTIFIER;
 
+parameters: IDENTIFIER (COMMA IDENTIFIER)*;
+arguments: expr (COMMA expr)*;
 
 value: STRING_LITERAL | ICON_PATH | NUMBER | path | dotPath | IDENTIFIER;
-constructorCall: NEW absolutePath (OPEN_PAREN expression? CLOSE_PAREN)?;
+constructorCall: NEW absolutePath (OPEN_PAREN expr? CLOSE_PAREN)?;
+destructorCall
+ : DEL (OPEN_PAREN expr CLOSE_PAREN)?
+ | DEL expr
+ ;
 
 path: relativePath | absolutePath;
 
@@ -339,26 +375,27 @@ notReservedKeyword : VERB | PROC ;
 /*
 expressions
 */
-expression
+expr
     : functionCall #functionCallExpression
     | constructorCall  #constructorCallExpression
-    | '(' expression ')' #bracketExpression
-    | ('~' | '!' | '-' | '++' | '--') expression #oneArgExpression
-    | '**' expression #powerExpression
-    | expression ('*' | '/' | '%') expression #multExpression
-    | expression ('+' | '-') expression #addExpression
-    | expression ('<' | '<=' | '>' | '>=') expression #compExpression
-    | expression ('<<' | '>>') expression #bitMoveExpression
-    | expression ('==' | '!=' | '<>') expression #eqExpression
-    | expression ('&' | '^' | '|') expression #bitExpression
-    | '&&' expression #logAndExpression
-    | '||' expression #logOrExpression
-    | expression '?' trueExpression ':' falseExpression #tenaryExpression
-    | expression ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expression #assignExpression
+    | destructorCall  #destructorCallExpression
+    | '(' expr ')' #bracketExpression
+    | ('~' | '!' | '-' | '++' | '--') expr #oneArgExpression
+    | '**' expr #powerExpression
+    | expr ('*' | '/' | '%') expr #multExpression
+    | expr ('+' | '-') expr #addExpression
+    | expr ('<' | '<=' | '>' | '>=') expr #compExpression
+    | expr ('<<' | '>>') expr #bitMoveExpression
+    | expr ('==' | '!=' | '<>') expr #eqExpression
+    | expr ('&' | '^' | '|') expr #bitExpression
+    | '&&' expr #logAndExpression
+    | '||' expr #logOrExpression
+    | expr '?' trueExpression ':' falseExpression #tenaryExpression
+    | expr ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expr #assignExpression
     | value #valExpression
     ;
-trueExpression: expression;
-falseExpression: expression;
+trueExpression: expr;
+falseExpression: expr;
 
 
 

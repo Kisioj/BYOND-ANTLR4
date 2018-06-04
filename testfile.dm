@@ -1,3 +1,5 @@
-mob/player
-	Login()
-		//src.name = input("What is your name?", "Name", src.name) as text
+mob/proc/DayNight(is_day)
+	if(client)
+		client.color = is_day ? null : list(0.2,0.05,0.05, 0.1,0.3,0.2, 0.1,0.1,0.4)
+		//client.color = is_day ? null : list(0.8,0.05,0.05, 0.8,0.3,0.2, 0.8,0.1,0.4)
+		//client.color = is_day ? null : list(0.1,0.025,0.025, 0.05,0.15,0.1, 0.05,0.05,0.2)
