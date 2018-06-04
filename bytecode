@@ -1,0 +1,32 @@
+world    E5
+src      CE
+usr      CD
+
+'A' 2E
+'B' 2D
+
+
+'a' F7
+'b' F8
+
+
+//0x5F   95     to '1'  , trzeba odjac 46
+
+
+world    <<    1.7
+E5 FF  60 00   2A 00 D9 3F 9A 99
+
+world    <<    1.6
+E5 FF  60 00   2A 00 CC 3F CD CC
+
+world    <<    1.5
+E5 FF  60 00   2A 00 C0 3F 00 00
+
+world   <<     1
+E5 FF  50 00   01 00
+
+world   <<    src
+E5 FF  33 00  CE FF
+
+world       >>          src
+E5 FF  AF 00 34 00     CE FF

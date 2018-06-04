@@ -8,10 +8,6 @@ grun DM startRule ../testfile.dm -gui
 cd ..
 */
 
-@header {
-    import java.lang.reflect.Field;
-}
-
 @lexer::members {
   // A queue where extra tokens are pushed on (see the NEWLINE lexer rule).
   private java.util.LinkedList<Token> tokens = new java.util.LinkedList<>();
@@ -38,9 +34,14 @@ cd ..
         }
       }
 
-      this.emit(commonToken(DMParser.NEWLINE));
+      CommonToken ct = commonToken(DMParser.NEWLINE);
+      ct.setText("<NEWLINE>");
+      this.emit(ct);
       while (!indents.isEmpty()) {
-        this.emit(commonToken(DMParser.DEDENT));
+        ct = commonToken(DMParser.DEDENT);
+        ct.setText("<DEDENT>");
+        this.emit(ct);
+
         indents.pop();
       }
       this.emit(commonToken(DMParser.EOF));
@@ -82,8 +83,13 @@ NEWLINE
      CommonToken ct;
 
      int next = _input.LA(1);
-     if (opened > 0 || next == '\r' || next == '\n' || next == '\f' || next == '#') {
+     if (opened > 0 || next == '\r' || next == '\n' || next == '\f') {
        skip();
+     } else if (next == '/' ) {
+        next = _input.LA(2);
+        if (next == '/' || next == '*') {
+            skip();
+        }
      }
      else {
        int startIndex = this._tokenStartCharIndex;
@@ -92,6 +98,7 @@ NEWLINE
        ct = commonToken(DMParser.NEWLINE, newLine, startIndex);
        ct.setLine(this._tokenStartLine);
        ct.setCharPositionInLine(this._tokenStartCharPositionInLine);
+       ct.setText("<NEWLINE>");
        emit(ct);
 
        int indent = spaces.length();
@@ -102,6 +109,7 @@ NEWLINE
        else if (indent > previous) {
          indents.push(indent);
          ct = commonToken(DMParser.INDENT, spaces, startIndexSpaces);
+         ct.setText("<INDENT>");
          ct.setCharPositionInLine(0);
          emit(ct);
        }
@@ -109,6 +117,7 @@ NEWLINE
          while(!indents.isEmpty() && indents.peek() > indent) {
            ct = commonToken(DMParser.DEDENT, spaces, startIndexSpaces);
            ct.setCharPositionInLine(0);
+           ct.setText("<DEDENT>");
            this.emit(ct);
            indents.pop();
          }
@@ -216,7 +225,7 @@ SEMICOLON : ';';
 IDENTIFIER: [_a-zA-Z][_a-zA-Z0-9]*;
 
 STRING_LITERAL : SHORT_STRING | LONG_STRING;
-PATH_LITERAL : '\'' (~["\\\r\n\f])* '\'';
+ICON_PATH : '\'' (~["\\\r\n\f])* '\'';
 
 fragment SHORT_STRING : '"' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f"] )* '"';
 fragment LONG_STRING :  '{"' LONG_STRING_ITEM*? '"}';
@@ -235,7 +244,7 @@ fragment STRING_ESCAPE_SEQ
  | '\\' NEWLINE
  ;
 
- NUMBER
+NUMBER
  : INTEGER
  | FLOAT_NUMBER
  ;
@@ -284,7 +293,7 @@ fragment SPACES
 COMMENT : INLINE_COMMENT | MULTILINE_COMMENT ;
 
 fragment INLINE_COMMENT
- : '//' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f"] )*
+ : '//' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f] )*
  ;
 
 
@@ -298,7 +307,61 @@ UNKNOWN_CHAR
  ;
 
 
-startRule: SLASH;
+/* parser rules */
+startRule: objDef *;
+
+objDef: path NEWLINE INDENT (varBlock|inlineVar|funcOverride)+ DEDENT;
+
+funcOverride: IDENTIFIER OPEN_PAREN CLOSE_PAREN NEWLINE INDENT funcBlock DEDENT;
+funcBlock: (expression NEWLINE?)+;
+functionCall: dotPath OPEN_PAREN expression? CLOSE_PAREN;
+
+tmpsDecl: TMP '/'? variableDef+;
+varBlock:  VAR NEWLINE INDENT (tmpsDecl|variableDef)+ DEDENT;
+inlineVar: VAR '/' variableDef;
+variableDef: leftSidePath? variableName (ASSIGN (constructorCall|value))? NEWLINE+;
+variableName: IDENTIFIER;
+
+
+value: STRING_LITERAL | ICON_PATH | NUMBER | path | dotPath | IDENTIFIER;
+constructorCall: NEW absolutePath (OPEN_PAREN expression? CLOSE_PAREN)?;
+
+path: relativePath | absolutePath;
+
+leftSidePath: (IDENTIFIER SLASH)+;
+
+relativePath: ((IDENTIFIER|notReservedKeyword) SLASH)* IDENTIFIER;
+absolutePath: SLASH relativePath;
+dotPath: IDENTIFIER ('.' IDENTIFIER)*;
+
+notReservedKeyword : VERB | PROC ;
+
+/*
+expressions
+*/
+expression
+    : functionCall #functionCallExpression
+    | constructorCall  #constructorCallExpression
+    | '(' expression ')' #bracketExpression
+    | ('~' | '!' | '-' | '++' | '--') expression #oneArgExpression
+    | '**' expression #powerExpression
+    | expression ('*' | '/' | '%') expression #multExpression
+    | expression ('+' | '-') expression #addExpression
+    | expression ('<' | '<=' | '>' | '>=') expression #compExpression
+    | expression ('<<' | '>>') expression #bitMoveExpression
+    | expression ('==' | '!=' | '<>') expression #eqExpression
+    | expression ('&' | '^' | '|') expression #bitExpression
+    | '&&' expression #logAndExpression
+    | '||' expression #logOrExpression
+    | expression '?' trueExpression ':' falseExpression #tenaryExpression
+    | expression ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expression #assignExpression
+    | value #valExpression
+    ;
+trueExpression: expression;
+falseExpression: expression;
+
+
+
 
 //startRule: (procDef | verbDef | objDef) + ;
 //startRule: objDef+ ;
@@ -348,24 +411,3 @@ verbDef: VERB (methodOf '/'?)? functionName '()' statementList;
 //    | varName '=' NUMBER_LITERAL
 //    ;
 
-/*
-expressions
-*/
-//expression
-//    : '(' expression ')' #bracketExpression
-//    | ('~' | '!' | '-' | '++' | '--') expression #oneArgExpression
-//    | '**' expression #powerExpression
-//    | expression ('*' | '/' | '%') expression #multExpression
-//    | expression ('+' | '-') expression #addExpression
-//    | expression ('<' | '<=' | '>' | '>=') expression #compExpression
-//    | expression ('<<' | '>>') expression #bitMoveExpression
-//    | expression ('==' | '!=' | '<>') expression #eqExpression
-//    | expression ('&' | '^' | '|') expression #bitExpression
-//    | '&&' expression #logAndExpression
-//    | '||' expression #logOrExpression
-//    | expression '?' trueExpression ':' falseExpression #tenaryExpression
-//    | expression ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expression #assingExpression
-//    | value #valExpression
-//    ;
-//trueExpression: expression;
-//falseExpression: expression;
