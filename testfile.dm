@@ -1,5 +1,8 @@
-mob/proc/DayNight(is_day)
-	if(client)
-		client.color = is_day ? null : list(0.2,0.05,0.05, 0.1,0.3,0.2, 0.1,0.1,0.4)
-		//client.color = is_day ? null : list(0.8,0.05,0.05, 0.8,0.3,0.2, 0.8,0.1,0.4)
-		//client.color = is_day ? null : list(0.1,0.025,0.025, 0.05,0.15,0.1, 0.05,0.05,0.2)
+var
+	x = 1
+	mob/y = 2
+	mob/a/x/a
+		z = 3
+	mob
+		aaa=1
+		bbb=2

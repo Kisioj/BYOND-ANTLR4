@@ -107,18 +107,20 @@ NEWLINE
          skip();
        }
        else if (indent > previous) {
-         indents.push(indent);
-         ct = commonToken(DMParser.INDENT, spaces, startIndexSpaces);
-         ct.setText("<INDENT>");
-         ct.setCharPositionInLine(0);
-         emit(ct);
+         for(int i=0; i < (indent-previous); ++i) {
+           indents.push(indent);
+           ct = commonToken(DMParser.INDENT, spaces, startIndexSpaces);
+           ct.setText("<INDENT>");
+           ct.setCharPositionInLine(0);
+           emit(ct);
+         }
        }
        else {
-         while(!indents.isEmpty() && indents.peek() > indent) {
+         for(int i=0; i < (previous-indent); ++i) {
            ct = commonToken(DMParser.DEDENT, spaces, startIndexSpaces);
-           ct.setCharPositionInLine(0);
            ct.setText("<DEDENT>");
-           this.emit(ct);
+           ct.setCharPositionInLine(0);
+           emit(ct);
            indents.pop();
          }
        }
@@ -311,36 +313,69 @@ UNKNOWN_CHAR
 
 
 /* parser rules */
-startRule: (procDef | objDef) *;
+startRule: (var_block | classdef)*;
 
-procDef: path OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT (varBlock|inlineVar)+ DEDENT;
-objDef: path NEWLINE INDENT (varBlock|inlineVar|funcOverride)+ DEDENT;
+
+objdef : funcdef | classdef;
+
+
+
+
+var_block
+ : 'var' NEWLINE INDENT (classref (NEWLINE|';')?)+ DEDENT
+ | 'var' '/' classref
+ ;
+
+classref
+ : IDENTIFIER NEWLINE INDENT (classref (NEWLINE|';'))+ DEDENT
+ | IDENTIFIER '/' classref
+ | vardef
+ ;
+
+vardef
+ :  IDENTIFIER ('=' value)?;
+
+
+
+
+classdef
+ : IDENTIFIER NEWLINE INDENT objdef+ DEDENT
+ | IDENTIFIER '/' objdef
+ ;
+
+funcdef
+ : func_type? NEWLINE INDENT func_header DEDENT
+ | (func_type '/')? func_header
+ ;
+func_type: 'proc' | 'verb';
+func_header
+ : IDENTIFIER '(' ')' NEWLINE INDENT func_settings stmt_list DEDENT
+ ;
+
+func_settings: (func_setting (NEWLINE|';'))*;
+func_setting: 'set' IDENTIFIER ('=' | 'in') expr;
+
+stmt_list: (statement (NEWLINE|';'))+;
+statement
+ : var_inline
+ | expr
+ ;
+
+var_inline: 'var' path IDENTIFIER ('=' expr)?;
+path: ('/' IDENTIFIER)* '/';
+
+/*
+
+
+
+
+procdef: path OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT (varBlock|inlineVar)+ DEDENT;
+verbdef: path OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT (varBlock|inlineVar)+ DEDENT;
+//classdef: path NEWLINE INDENT (varBlock|inlineVar|funcOverride)+ DEDENT;
 
 funcOverride: IDENTIFIER OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT funcBlock DEDENT;
 funcBlock: (expr NEWLINE?)+;
 
-/*
-ifBlock: (expr NEWLINE?)+;
-
-
-compound_stmt
- : if_stmt
- | while_stmt
- | for_stmt
- //| try_stmt
- ;
-
-suite: stmt_list NEWLINE | NEWLINE INDENT statement+ DEDENT
-statement     ::=  stmt_list NEWLINE | compound_stmt
-stmt_list   simple_stmt (";" simple_stmt)* [";"]
-
-
-if_stmt: IF OPEN_PAREN expr CLOSE_PAREN suite (ELSE IF OPEN_PAREN expr CLOSE_PAREN suite)* (ELSE suite)?;
-
-
-suite:  stmt_list NEWLINE | NEWLINE INDENT statement+ DEDENT;
-
-*/
 
 functionCall: dotPath OPEN_PAREN arguments? CLOSE_PAREN asType? inList?;
 asType: AS IDENTIFIER;
@@ -371,15 +406,14 @@ absolutePath: SLASH relativePath;
 dotPath: IDENTIFIER ('.' IDENTIFIER)*;
 
 notReservedKeyword : VERB | PROC ;
-
+*/
 /*
 expressions
 */
+
+
 expr
-    : functionCall #functionCallExpression
-    | constructorCall  #constructorCallExpression
-    | destructorCall  #destructorCallExpression
-    | '(' expr ')' #bracketExpression
+    : '(' expr ')' #bracketExpression
     | ('~' | '!' | '-' | '++' | '--') expr #oneArgExpression
     | '**' expr #powerExpression
     | expr ('*' | '/' | '%') expr #multExpression
@@ -390,12 +424,12 @@ expr
     | expr ('&' | '^' | '|') expr #bitExpression
     | '&&' expr #logAndExpression
     | '||' expr #logOrExpression
-    | expr '?' trueExpression ':' falseExpression #tenaryExpression
+    | expr '?' expr ':' expr #tenaryExpression
     | expr ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expr #assignExpression
     | value #valExpression
     ;
-trueExpression: expr;
-falseExpression: expr;
+
+value: STRING_LITERAL | ICON_PATH | NUMBER | IDENTIFIER;
 
 
 
