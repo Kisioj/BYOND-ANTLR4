@@ -8,6 +8,8 @@ grun DM startRule ../testfile.dm -gui
 cd ..
 */
 
+// https://intellij-support.jetbrains.com/hc/en-us/community/posts/206103369-Using-ANTLR-v4-to-lex-parse-custom-file-formats
+
 @lexer::members {
   // A queue where extra tokens are pushed on (see the NEWLINE lexer rule).
   private java.util.LinkedList<Token> tokens = new java.util.LinkedList<>();
@@ -322,14 +324,14 @@ objdef : funcdef | classdef;
 
 
 var_block
- : 'var' NEWLINE INDENT (classref (NEWLINE|';')?)+ DEDENT
- | 'var' '/' classref
+ : 'var' NEWLINE INDENT var_path+ DEDENT
+ | 'var' '/' var_path
  ;
 
-classref
- : IDENTIFIER NEWLINE INDENT (classref (NEWLINE|';'))+ DEDENT
- | IDENTIFIER '/' classref
- | vardef
+var_path
+ : IDENTIFIER NEWLINE INDENT var_path+ DEDENT
+ | IDENTIFIER '/' var_path
+ | vardef (NEWLINE|';')
  ;
 
 vardef
