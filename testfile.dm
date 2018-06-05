@@ -1,3 +1,4 @@
+var/x = 9
 var
 	x = 1
 	mob/y = 2

@@ -313,7 +313,7 @@ UNKNOWN_CHAR
 
 
 /* parser rules */
-startRule: (var_block | classdef)*;
+startRule: (var_block | classdef | NEWLINE)*;
 
 
 objdef : funcdef | classdef;
