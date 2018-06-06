@@ -253,36 +253,34 @@ fragment STRING_ESCAPE_SEQ
 
 NUMBER
  : INTEGER
- | FLOAT_NUMBER
+ | FLOAT
  ;
 
 INTEGER
- : DECIMAL_INTEGER
- | HEX_INTEGER
+ : DEC
+ | HEX
+ | OCT
  ;
 
-DECIMAL_INTEGER : DIGIT+;
-HEX_INTEGER : '0x' HEX_DIGIT+ ;
+fragment DEC
+ : NON_ZERO_DIGIT DIGIT*
+ | '0'
+ ;
+
+fragment HEX : '0x' HEX_DIGIT+ ;
+fragment OCT : '0' OCT_DIGIT+;
 
 fragment DIGIT : [0-9];
+fragment NON_ZERO_DIGIT : [1-9];
 fragment HEX_DIGIT : [0-9a-fA-F];
+fragment OCT_DIGIT : [0-7];
 
-FLOAT_NUMBER
- : POINT_FLOAT
- | EXPONENT_FLOAT
- ;
-
-fragment POINT_FLOAT
- : INT_PART? FRACTION
- | INT_PART '.'
- ;
-
-fragment EXPONENT_FLOAT
-: INT_PART FRACTION? EXPONENT
+FLOAT
+ : DEC '.' DIGIT* EXPONENT?
+ | DIGIT+ EXPONENT
  ;
 
 fragment INT_PART : DIGIT+;
-fragment FRACTION : '.' DIGIT+;
 fragment EXPONENT : [eE] [+-]? DIGIT+;
 
 
@@ -315,25 +313,21 @@ UNKNOWN_CHAR
 
 
 /* parser rules */
-startRule: (var_block | classdef | NEWLINE)*;
-
+startRule: (var_stmt | classdef | NEWLINE)*;
 
 objdef : funcdef | classdef;
 
 
 
-
-var_block
+var_stmt
  : 'var' NEWLINE INDENT var_path+ DEDENT
  | 'var' '/' var_path
  ;
-
 var_path
  : IDENTIFIER NEWLINE INDENT var_path+ DEDENT
  | IDENTIFIER '/' var_path
- | vardef (NEWLINE|';')
+ | vardef NEWLINE
  ;
-
 vardef
  :  IDENTIFIER ('=' value)?;
 
@@ -351,20 +345,32 @@ funcdef
  ;
 func_type: 'proc' | 'verb';
 func_header
- : IDENTIFIER '(' ')' NEWLINE INDENT func_settings stmt_list DEDENT
+ : IDENTIFIER '(' ')' NEWLINE INDENT func_settings? stmt_list DEDENT
  ;
 
-func_settings: (func_setting (NEWLINE|';'))*;
+func_settings: (func_setting NEWLINE)+;
 func_setting: 'set' IDENTIFIER ('=' | 'in') expr;
 
-stmt_list: (statement (NEWLINE|';'))+;
-statement
- : var_inline
- | expr
- ;
+stmt_block: NEWLINE INDENT stmt_list DEDENT;
+stmt_list: stmt+;
 
-var_inline: 'var' path IDENTIFIER ('=' expr)?;
-path: ('/' IDENTIFIER)* '/';
+stmt: simple_stmt | compound_stmt;
+simple_stmt: (var_stmt | flow_stmt | expr) NEWLINE;
+compound_stmt: if_stmt;
+
+
+flow_stmt: break_stmt | continue_stmt | return_stmt;
+
+
+if_stmt
+ : 'if' '(' expr ')' stmt_block ('else' 'if' '(' expr ')' stmt_block)* ('else' stmt_block)?
+ ;
+ //('else' 'if' '(' expr ')' NEWLINE)* ('else'  suite)?
+ //|
+
+break_stmt: 'break';
+continue_stmt: 'continue';
+return_stmt: 'return' expr?;
 
 /*
 
