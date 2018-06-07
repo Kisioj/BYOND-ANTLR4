@@ -346,7 +346,7 @@ classdef
  : NAME NEWLINE INDENT class_body+ DEDENT
  | NAME '/' class_body
  ;
-class_body: var_stmt | funcdefs | classdef | vardef;
+class_body: var_stmt | funcdefs | classdef | vardef NEWLINE;
 
 
 funcdefs
@@ -356,7 +356,7 @@ funcdefs
 func_type: 'proc' | 'verb';
 funcdef: NAME '(' parameters? ')' (suite | NEWLINE); //possible empty function body
 parameters: parameter (',' parameter)*  (',')?;
-parameter: (NAME | inline_var_stmt) ('=' expr)? ('as' NAME ('|' NAME)* )? ('in' expr)?;
+parameter: (NAME | ('var' '/')? inline_var_path) ('=' expr)? ('as' NAME ('|' NAME)* )? ('in' expr)?;
 
 suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT;
 
