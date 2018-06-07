@@ -315,7 +315,7 @@ UNKNOWN_CHAR
 /* parser rules */
 startRule: (var_stmt | objdef | NEWLINE)*;
 
-objdef : funcdef | classdef;
+objdef : var_stmt | funcdef | classdef;
 
 
 
@@ -329,7 +329,7 @@ var_path
  | vardef NEWLINE
  ;
 vardef
- :  NAME ('=' value)?;
+ :  NAME ('=' expr)?;
 
 
 /*
@@ -340,7 +340,6 @@ inline_var_path
  : NAME '/' inline_var_path
  | vardef
  ;
-
 
 
 classdef
@@ -361,13 +360,14 @@ suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT;
 stmt: simple_stmt | compound_stmt;
 
 simple_stmt: small_stmt NEWLINE;
-small_stmt: var_stmt | flow_stmt | expr;
+small_stmt: del_stmt | flow_stmt | expr;
 
 set_stmt: 'set' NAME ('=' | 'in') expr;
+del_stmt: 'del' expr;
 flow_stmt: set_stmt | break_stmt | continue_stmt | return_stmt;
 
 
-compound_stmt: if_stmt | dowhile_stmt | while_stmt | for_stmt | foreach_stmt;
+compound_stmt: var_stmt | if_stmt | dowhile_stmt | while_stmt | for_stmt | foreach_stmt;
 
 
 
@@ -433,77 +433,35 @@ expressions
 
 
 expr
-    : '(' expr ')' #bracketExpression
-    | expr trailer  #trailerExpression
-    | ('~' | '!' | '-' | '++' | '--') expr #oneArgExpression
-    | '**' expr #powerExpression
-    | expr ('*' | '/' | '%') expr #multExpression
-    | expr ('+' | '-') expr #addExpression
-    | expr ('<' | '<=' | '>' | '>=') expr #compExpression
-    | expr ('<<' | '>>') expr #bitMoveExpression
-    | expr ('==' | '!=' | '<>') expr #eqExpression
-    | expr ('&' | '^' | '|') expr #bitExpression
-    | '&&' expr #logAndExpression
-    | '||' expr #logOrExpression
-    | expr '?' expr ':' expr #tenaryExpression
-    | expr ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expr #assignExpression
-    | value #valExpression
+    : '(' expr ')'                                                                          #bracket_expr
+    | expr trailer                                                                          #trailer_expr
+    | ('~' | '!' | '-' | '++' | '--') expr                                                  #onearg_expr
+    | '**' expr                                                                             #power_expr
+    | expr ('*' | '/' | '%') expr                                                           #mult_expr
+    | expr ('+' | '-') expr                                                                 #add_expr
+    | expr ('<' | '<=' | '>' | '>=') expr                                                   #comp_expr
+    | expr ('<<' | '>>') expr                                                               #bitmove_expr
+    | expr ('==' | '!=' | '<>') expr                                                        #eq_expr
+    | expr ('&' | '^' | '|') expr                                                           #bit_expr
+    | '&&' expr                                                                             #logand_expr
+    | '||' expr                                                                             #logor_expr
+    | expr '?' expr ':' expr                                                                #tenary_expr
+
+    | expr 'as' NAME  # as_expr
+    | expr 'in' expr  # in_expr
+
+    | expr ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expr      #assign_expr
+    | new_stmt # new_expr
+    | value                                                                                 #val_expr
     ;
 
 trailer: '(' (arglist)? ')' | '[' expr ']' | '.' NAME;
 arglist: expr (',' expr)*  (',')?;
 
 
-value: STRING_LITERAL | ICON_PATH | NUMBER | NAME;
+value: STRING_LITERAL | ICON_PATH | NUMBER | NAME | path;
 
 
-
-
-//startRule: (procDef | verbDef | objDef) + ;
-//startRule: objDef+ ;
-//objDef: className NEWLINE INDENT (variablesDecl|variableDecl)+ DEDENT;
-
-
-
-/*
-procOverrideDef: methodOf INDENT functionName '()' statementList;
-procDef: PROC (methodOf '/'?)? functionName '()' statementList;
-verbDef: VERB (methodOf '/'?)? functionName '()' statementList;
-*/
-
-//methodOf: className ;
-//className: ATOM | DATUM | TURF | OBJ | MOB | IDENTIFIER;
-
-//functionName: IDENTIFIER ;
-
-
-//tmpsDecl: TMP '/'? variableDef+;
-//variablesDecl:  VAR NEWLINE INDENT (tmpsDecl|variableDef)+ DEDENT;
-//variableDecl: VAR '/' variableDef;
-//variableDef: leftSidePath? variableName (OP_ASSIGN (constructorCall|value))?;
-//variableName: IDENTIFIER;
-
-
-//constructorCall: NEW '/' path '()';
-
-//path: relativePath | absolutePath;
-
-//leftSidePath: (className OP_PATH)+;
-
-//relativePath: (className OP_PATH)* className;
-//absolutePath: OP_PATH relativePath;
-
-
-//statementList: statement+ ;
-//varName: IDENTIFIER ;
-
-//assignmentList: assignment+;
-//assignment: IDENTIFIER OP_ASSIGN NUMBER_LITERAL ;
-
-//value: NUMBER_LITERAL | STRING_LITERAL | IDENTIFIER;
-
-//statement
-//    : WORLD OP_OUT STRING_LITERAL
-//    | varName '=' NUMBER_LITERAL
-//    ;
-
+new_stmt: 'new' path;
+path: ('/' name)+ '/'?;
+name: NAME | 'proc' | 'verb';

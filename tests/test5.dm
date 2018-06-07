@@ -4,5 +4,9 @@ proc/dupa()
 
 
 mob/Login()
+	var/mob
+		M = new /mob()
+		K = new /mob()
 	for(var/mob/M as anything in dupa())
 		world << M
+		del(M)
