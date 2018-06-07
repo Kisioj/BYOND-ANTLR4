@@ -344,22 +344,24 @@ funcdef
  | (func_type '/')? func_header
  ;
 func_type: 'proc' | 'verb';
-func_header
- : IDENTIFIER '(' ')' NEWLINE INDENT func_settings? stmt_list DEDENT
- ;
+func_header: IDENTIFIER '(' ')' stmt_block;
 
-func_settings: (func_setting NEWLINE)+;
-func_setting: 'set' IDENTIFIER ('=' | 'in') expr;
+stmt_block: NEWLINE INDENT stmt+ DEDENT;
 
-stmt_block: NEWLINE INDENT stmt_list DEDENT;
-stmt_list: stmt+;
 
 stmt: simple_stmt | compound_stmt;
-simple_stmt: (var_stmt | flow_stmt | expr) NEWLINE;
+
+simple_stmt: small_stmt NEWLINE;
+small_stmt: var_stmt | flow_stmt | expr;
+
+set_stmt: 'set' IDENTIFIER ('=' | 'in') expr;
+flow_stmt: set_stmt | break_stmt | continue_stmt | return_stmt;
+
+
 compound_stmt: if_stmt;
 
 
-flow_stmt: break_stmt | continue_stmt | return_stmt;
+
 
 
 if_stmt
