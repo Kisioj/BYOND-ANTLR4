@@ -379,7 +379,7 @@ compound_stmt: var_stmt | if_stmt | dowhile_stmt | while_stmt | for_stmt | forea
 if_stmt: 'if' '(' expr ')' suite ('else' 'if' '(' expr ')' suite)* ('else' suite)?;
 dowhile_stmt: 'do' suite 'while' '(' expr ')';
 while_stmt: 'while' '(' expr ')' suite;
-spawn_stmt: 'spawn' '(' expr ')' suite;
+spawn_stmt: 'spawn' '(' expr? ')' suite;
 
 
 for_stmt: 'for' '(' ((expr|inline_var_stmt)? (','|';') expr? (','|';') expr?)? ')' suite;
@@ -408,11 +408,11 @@ expr
     | expr 'in' expr  # in_expr
 
     | expr ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '<<=' | '>>=') expr      #assign_expr
-    | new_stmt # new_expr
+    | new_stmt expr? # new_expr
     | value                                                                                 #val_expr
     ;
 
-trailer: '(' (arglist)? ')' | '[' expr ']' | '.' NAME;
+trailer: '(' (arglist)? ')' | '[' expr ']' | ('.' | ':') NAME;
 arglist: expr (',' expr)*  (',')?;
 
 
