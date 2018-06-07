@@ -157,6 +157,7 @@ SPAWN : 'spawn';
 TRY : 'try';
 CATCH : 'catch';
 
+
 /* BYOND not reserved keywords (for this grammar they will be reserved) */
 VERB : 'verb';
 PROC : 'proc';
@@ -175,6 +176,7 @@ OPEN_BRACK : '[' {opened++;};
 CLOSE_BRACK : ']' {opened--;};
 OPEN_PAREN : '(' {opened++;};
 CLOSE_PAREN : ')' {opened--;};
+DOUBLE_DOT: '..';
 DOT : '.';
 COMMA : ',';
 STAR : '*';
@@ -313,10 +315,7 @@ UNKNOWN_CHAR
 
 
 /* parser rules */
-startRule: (var_stmt | objdef | NEWLINE)*;
-
-objdef : var_stmt | funcdef | classdef;
-
+start: (var_stmt | funcdefs | classdef | NEWLINE)*;
 
 
 var_stmt
@@ -326,16 +325,14 @@ var_stmt
 var_path
  : NAME NEWLINE INDENT var_path+ DEDENT
  | NAME '/' var_path
- | vardef NEWLINE
+ | vardef
  ;
 vardef
- :  NAME ('=' expr)?;
+ :  NAME ('=' expr)? NEWLINE;
 
 
-/*
-can be used in for loop for example
-*/
-inline_var_stmt: 'var' '/' inline_var_path;
+
+inline_var_stmt: 'var' '/' inline_var_path;  // can be used in for loop
 inline_var_path
  : NAME '/' inline_var_path
  | vardef
@@ -343,16 +340,20 @@ inline_var_path
 
 
 classdef
- : NAME NEWLINE INDENT objdef+ DEDENT
- | NAME '/' objdef
+ : NAME NEWLINE INDENT class_body+ DEDENT
+ | NAME '/' class_body
  ;
+class_body: var_stmt | funcdefs | classdef | vardef;
 
-funcdef
- : func_type? NEWLINE INDENT func_header DEDENT
- | (func_type '/')? func_header
+
+funcdefs
+ : func_type? NEWLINE INDENT funcdef+ DEDENT
+ | (func_type '/')? funcdef
  ;
 func_type: 'proc' | 'verb';
-func_header: NAME '(' ')' suite;
+funcdef: NAME '(' parameters? ')' (suite | NEWLINE); //possible empty function body
+parameters: parameter (',' parameter)*  (',')?;
+parameter: NAME ('as' NAME ('|' NAME)* )? ('in' expr)?;
 
 suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT;
 
@@ -367,7 +368,7 @@ del_stmt: 'del' expr;
 flow_stmt: set_stmt | break_stmt | continue_stmt | return_stmt;
 
 
-compound_stmt: var_stmt | if_stmt | dowhile_stmt | while_stmt | for_stmt | foreach_stmt;
+compound_stmt: var_stmt | if_stmt | dowhile_stmt | while_stmt | for_stmt | foreach_stmt | spawn_stmt;
 
 
 
@@ -375,6 +376,7 @@ compound_stmt: var_stmt | if_stmt | dowhile_stmt | while_stmt | for_stmt | forea
 if_stmt: 'if' '(' expr ')' suite ('else' 'if' '(' expr ')' suite)* ('else' suite)?;
 dowhile_stmt: 'do' suite 'while' '(' expr ')';
 while_stmt: 'while' '(' expr ')' suite;
+spawn_stmt: 'spawn' '(' expr ')' suite;
 
 
 for_stmt: 'for' '(' ((expr|inline_var_stmt)? (','|';') expr? (','|';') expr?)? ')' suite;
@@ -383,54 +385,6 @@ foreach_stmt: 'for' '(' (inline_var_stmt|NAME) ('as' NAME)? ('in' expr)? ')' sui
 break_stmt: 'break';
 continue_stmt: 'continue';
 return_stmt: 'return' expr?;
-
-/*
-
-
-
-
-procdef: path OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT (varBlock|inlineVar)+ DEDENT;
-verbdef: path OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT (varBlock|inlineVar)+ DEDENT;
-//classdef: path NEWLINE INDENT (varBlock|inlineVar|funcOverride)+ DEDENT;
-
-funcOverride: IDENTIFIER OPEN_PAREN parameters? CLOSE_PAREN NEWLINE INDENT funcBlock DEDENT;
-funcBlock: (expr NEWLINE?)+;
-
-
-functionCall: dotPath OPEN_PAREN arguments? CLOSE_PAREN asType? inList?;
-asType: AS IDENTIFIER;
-inList: IN expr;
-
-tmpsDecl: TMP '/'? variableDef+;
-varBlock:  VAR NEWLINE INDENT (tmpsDecl|variableDef)+ DEDENT;
-inlineVar: VAR '/' variableDef;
-variableDef: leftSidePath? variableName (ASSIGN (constructorCall|value))? NEWLINE+;
-variableName: IDENTIFIER;
-
-parameters: IDENTIFIER (COMMA IDENTIFIER)*;
-arguments: expr (COMMA expr)*;
-
-value: STRING_LITERAL | ICON_PATH | NUMBER | path | dotPath | IDENTIFIER;
-constructorCall: NEW absolutePath (OPEN_PAREN expr? CLOSE_PAREN)?;
-destructorCall
- : DEL (OPEN_PAREN expr CLOSE_PAREN)?
- | DEL expr
- ;
-
-path: relativePath | absolutePath;
-
-leftSidePath: (IDENTIFIER SLASH)+;
-
-relativePath: ((IDENTIFIER|notReservedKeyword) SLASH)* IDENTIFIER;
-absolutePath: SLASH relativePath;
-dotPath: IDENTIFIER ('.' IDENTIFIER)*;
-
-notReservedKeyword : VERB | PROC ;
-*/
-/*
-expressions
-*/
-
 
 expr
     : '(' expr ')'                                                                          #bracket_expr
@@ -459,9 +413,11 @@ trailer: '(' (arglist)? ')' | '[' expr ']' | '.' NAME;
 arglist: expr (',' expr)*  (',')?;
 
 
-value: STRING_LITERAL | ICON_PATH | NUMBER | NAME | path;
 
 
-new_stmt: 'new' path;
+value: STRING_LITERAL | ICON_PATH | NUMBER | NAME | path | '..' | '.';
+
+
+new_stmt: 'new' path?;  // implicit type (when empty path) may only be used in an assignment
 path: ('/' name)+ '/'?;
 name: NAME | 'proc' | 'verb';
