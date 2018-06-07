@@ -322,13 +322,16 @@ var_stmt
  : 'var' NEWLINE INDENT var_path+ DEDENT
  | 'var' '/' var_path
  ;
+
 var_path
- : NAME NEWLINE INDENT var_path+ DEDENT
- | NAME '/' var_path
- | vardef
+ : (NAME | 'tmp') NEWLINE INDENT var_path+ DEDENT
+ | (NAME | 'tmp') '/' var_path
+ | vardef NEWLINE
  ;
+
 vardef
- :  NAME ('=' expr)? NEWLINE;
+ :  NAME ('=' expr)?
+ ;
 
 
 
@@ -353,7 +356,7 @@ funcdefs
 func_type: 'proc' | 'verb';
 funcdef: NAME '(' parameters? ')' (suite | NEWLINE); //possible empty function body
 parameters: parameter (',' parameter)*  (',')?;
-parameter: NAME ('as' NAME ('|' NAME)* )? ('in' expr)?;
+parameter: (NAME | inline_var_stmt) ('=' expr)? ('as' NAME ('|' NAME)* )? ('in' expr)?;
 
 suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT;
 
@@ -397,8 +400,8 @@ expr
     | expr ('<<' | '>>') expr                                                               #bitmove_expr
     | expr ('==' | '!=' | '<>') expr                                                        #eq_expr
     | expr ('&' | '^' | '|') expr                                                           #bit_expr
-    | '&&' expr                                                                             #logand_expr
-    | '||' expr                                                                             #logor_expr
+    | expr '&&' expr                                                                        #logand_expr
+    | expr '||' expr                                                                        #logor_expr
     | expr '?' expr ':' expr                                                                #tenary_expr
 
     | expr 'as' NAME  # as_expr

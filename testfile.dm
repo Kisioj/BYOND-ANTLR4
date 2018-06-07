@@ -1,142 +1,200 @@
-mob/player
-	Login()
-		usr << "BYOND version: [usr.client.byond_version], world.fps: [world.fps], world.tick_lag: [world.tick_lag], world.maxx: [world.maxx], world.maxy: [world.maxy]"
-		world << "[src.name] has logged in"
+mob
+	var
+		hp = 100
+		max_hp = 100
+		chakra = 50
+		max_chakra = 50
 
-		src.loc = locate(/turf/spawn_point/fire_academy)
-		//src.Move(locate(/turf/spawn_point/fire_academy))
-		src.icon = 'icons/naruto revolution/bases/base.dmi'
-		src.true_icon = src.icon
-		src.load_stats()
-		new /obj/clothes/inuzuka_suit(src)
+		true_tai = 10
+		tai_exp = 0
+		tai_max_exp = 100
 
-		src.verbs += /guild/verb/create_guild
+		true_nin = 10
+		nin_exp = 0
+		nin_max_exp = 100
 
-		//src.name = input("What is your name?", "Name", src.name) as text
-		//src.age = input("How old are you?", "Age") as num
-		//src.favourite_color = input("Select your favourite color", "Favourite color") as color
+		true_gen = 10
+		gen_exp = 0
+		gen_max_exp = 100
 
-		//src.draw_planes()
-		//DayNight(False)
-		client.screen += new/obj/lighting_plane
-		client.screen += new/obj/hud/daynight
+		tmp
+			tai
+			nin
+			gen
 
-		//client.screen += new/obj/lighting_plane2
-		overlays += /image/spotlight
-		/*
-		var/dict/d = new()
-		d[4] = 5
-		d[1] = 2
-		d["4"] = "9"
-		world << "A) [d.values()]"
+		rank = ACADEMY_STUDENT
 
-		d.pop(1)
-		d.pop(4)
-		world << "B) [d.values()]"
-		*/
-		/*
-		world << "list:"
-		var/pylist/l = new()
-		l.append(5)
-		l.append(10)
-		l.append(20)
-		world << "l\[1]: [l[-1]], [l]"
-		*/
+		obj/hairstyle/hairstyle = None
+		list/clothes = new/list()
 
-		//world << "huehue: [d.values]"
-		//var/list/L = list()
-		//L["super"] = "alejaja"
-		//world << "[L.Find("alejajaz")]"
-		//var/matrix/M = matrix(list(0.2,0.05,0.05, 0.1,0.3,0.2, 0.1,0.1,0.4))
-		//world << "[M]"
-		//animate(src, transform = matrix()*2, alpha = 0, time = 5) //grow and fade
+		in_henge = False
+		list/face_memory = new/list() //TODO: lista bedzie miala limit max 10, na poczatku max 1, trenowanie pamieci bedzie odbywalo sie przez granie w memory zakupione u handlarza
+		memory_skill = 3 //ile twarzy mo�emy zapami�ta� do henge no jutsu
+		true_icon = None
 
-	Logout()
-		world << "[src.name] has logged out"
-		del(src)
+		resting = False
+		camera_locked = False
+		on_water = False
+		can_attack = True
+
+		age = 18
+		favourite_color = None
+		water_walking = False
+
+		yen = 100000
+		guild = None
+
+		tmp
+			can_say_time = 0
+			deque/limited_deque/say_times = None
+
+	__init__()
+		. = ..()
+		src.say_times = new/deque/limited_deque(limit=5)
+
+	/*
+	__move__(loc)
+		world << "loc: [loc]"
+		//if(resting)
+		//	return 0
+
+		return ..()
+	*/
+	proc
+		load_stats()
+			src.tai = src.true_tai
+			src.nin = src.true_nin
+			src.gen = src.true_gen
+
+		add_overlay(var/obj/obj, overlay_layer)
+			var/initial_layer = obj.layer
+			obj.layer = overlay_layer
+			src.overlays += obj
+			obj.layer = initial_layer
+
+		update_overlays()
+			src.overlays = None
+
+			var
+				show_hair = True
+				list/worn_clothes = new/list()
+
+			for (var/obj/clothes/obj in src.clothes)
+				if (obj.worn)
+					worn_clothes += obj
+					if (obj.hide_hair_when_worn)
+						show_hair = False
+
+			if (show_hair && src.hairstyle)
+				src.add_overlay(src.hairstyle, HAIR_LAYER)
+
+			for (var/obj/clothes/obj in worn_clothes)
+				src.add_overlay(obj, CLOTHES_LAYER)
 
 
-mob/proc/DayNight(is_day)
-	if(client)
-		client.color = is_day ? null : list(0.2,0.05,0.05, 0.1,0.3,0.2, 0.1,0.1,0.4)
-		//client.color = is_day ? null : list(0.8,0.05,0.05, 0.8,0.3,0.2, 0.8,0.1,0.4)
-		//client.color = is_day ? null : list(0.1,0.025,0.025, 0.05,0.15,0.1, 0.05,0.05,0.2)
+	proc
+		is_spamming_say()
+			return src.say_times.is_full() && (src.say_times.last() - src.say_times.first() < 30)
 
-var
-	list/glob_list = list(0.2,0.05,0.05, 0.1,0.3,0.2, 0.1,0.1,0.4)
+	verb
+		say(msg as text)
+			var
+				time = world.time
 
-atom
+			if (time < usr.can_say_time)
+				usr << {"You cannot say anything for [round((usr.can_say_time - time)/10)] more seconds. Following message won't be displayed: "[msg]""}
+				return
+
+			msg = html_encode(msg)
+
+			if (len(msg) > 240)
+				usr << {"Your message is too long, and will be shortened to 240 characters, original message: "[msg]""}
+				msg = copytext(msg, 1, 240) + "..."
+
+			usr.say_times.append(time)
+			view() << {"<b>[usr]</b>: [msg]"}
+
+			if (usr.is_spamming_say())
+				usr << "SPAM DETECTION: You won't be able to say anything for 3 minutes"
+				usr.can_say_time = time + 1800
+/*
+
+proc/get_speed_delay(n)
+	if(n != 0)
+		return (world.icon_size * world.tick_lag) / n
+	else
+		return (world.icon_size * world.tick_lag) / 1
+
+
+atom/movable
+	appearance_flags = LONG_GLIDE
+
+	var/speed = 3
+	var/tmp/move_time = 0
+	var/tmp/transferring = 0
+
+	Move(new_loc, dir)
+		//world << "new_loc: [new_loc], dir: [dir]"
+		if(!src.loc) return ..(new_loc, dir)
+
+		if(world.time < src.move_time) return 0
+
+		if(transferring) return 0
+
+		. = ..(new_loc, dir)
+		//world << ". is [.]"
+		if(.)
+			src.move_time = world.time + get_speed_delay(src.speed)
+			src.glide_size = speed
+			world << "glide_size: [glide_size], speed_delay: [get_speed_delay(src.speed)]"
+
+
+mob
+	var/w,a,s,d = 0
+
+	proc/move_loop()
+		if(!step(src, (!w && s && SOUTH) | (!s && w && NORTH) | (!d && a && WEST) | (!a && d && EAST)))
+			if(!step(src, (s && SOUTH) | (w && NORTH)))
+				step(src, (a && WEST) | (d && EAST))
+		spawn(world.tick_lag) move_loop()
+
+	verb/keydown(k as text)
+		set hidden = 1
+		set instant = 1
+		if(k == "w") w = 1
+		if(k == "a") a = 1
+		if(k == "s") s = 1
+		if(k == "d") d = 1
+
+	verb/keyup(k as text)
+		set hidden = 1
+		set instant = 1
+		if(k == "w") w = 0
+		if(k == "a") a = 0
+		if(k == "s") s = 0
+		if(k == "d") d = 0
+
+
+
+client
 	New()
 		..()
-		color = glob_list //list(0.2,0.05,0.05, 0.1,0.3,0.2, 0.1,0.1,0.4)
+		//fps = 60
+		winset(src, "North", "parent=macro;name=North;command=keydown+w")
+		winset(src, "North+up", "parent=macro;name=North+up;command=keyup+w")
+		winset(src, "West", "parent=macro;name=West;command=keydown+a")
+		winset(src, "West+up", "parent=macro;name=West+up;command=keyup+a")
+		winset(src, "South", "parent=macro;name=South;command=keydown+s")
+		winset(src, "South+up", "parent=macro;name=South+up;command=keyup+s")
+		winset(src, "East", "parent=macro;name=East;command=keydown+d")
+		winset(src, "East+up", "parent=macro;name=East+up;command=keyup+d")
+		src.mob.move_loop()
 
-mob
-	verb
-		change_color(x as num)
-			glob_list[1] = x
-
-obj/lighting_plane
-	screen_loc = "1,1"
-	plane = 2
-	blend_mode = BLEND_MULTIPLY
-	appearance_flags = PLANE_MASTER | NO_CLIENT_COLOR
-	//color = list(0.2,0.05,0.05, 0.1,0.3,0.2, 0.1,0.1,0.4)
-	//color = list(null,null,null,null,"#333f")
-	//icon			= 'code/lib/weather.dmi'
-	//icon_state		= "night"
-
-	mouse_opacity = 0
-
-obj/hud
-	daynight
-		icon			= 'code/lib/weather.dmi'
-		icon_state		= "day"
-		screen_loc		= "SOUTHWEST to NORTHEAST"
-		plane			= 2
-		mouse_opacity 	= 0
-		blend_mode = BLEND_ADD
+*/
+	//Move(loc, dir)
+	//	src.mob.Move(loc, dir)
 
 
 
-obj/lighting_plane2
-	screen_loc = "1,1"
-	plane = 3
-	blend_mode = BLEND_MULTIPLY
-	appearance_flags = PLANE_MASTER | NO_CLIENT_COLOR
-	//color = list(5.555555555555556,-0.8333333333333334,	-0.2777777777777777, -1.1111111111111112,4.166666666666667,-1.9444444444444449, -1.111111111111111,-0.8333333333333336,3.0555555555555554)
-	color = list(null,null,null,null,"#333f")
-	//icon			= 'code/lib/weather.dmi'
-	//icon_state		= "night"
-
-	mouse_opacity = 0
-
-image/spotlight
-	plane = 2
-	blend_mode = BLEND_ADD
-	icon = 'icons/lightning.dmi'  // a 96x96 white circle
-	pixel_x = -32
-	pixel_y = -32
-
-
-mob
-	verb
-		Pick_Color(newColor as color)
-
-			var/ColorMatrix/c = new(newColor)
-
-			animate(client, color = c.matrix, time = 10)
-
-		Pick_ColorSatContBright(s as num, c as num, b as num)
-
-			var/ColorMatrix/cm = new(s, c, b)
-
-			animate(client, color = cm.matrix, time = 10)
-
-		Pick_ColorPreset(newColor in list("Invert", "BGR", "Greyscale", "Sepia", "Black & White", "Polaroid", "GRB", "RBG", "BRG", "GBR", "Normal"))
-
-			if(newColor == "Normal")
-				animate(client, color = null, time = 10)
-
-			else
-				var/ColorMatrix/c = new(newColor)
-				animate(client, color = c.matrix, time = 10)
+	//North()
+	//	src.mob.Move(src.mob, NORTH)
