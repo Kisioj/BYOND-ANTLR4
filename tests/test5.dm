@@ -1,4 +1,8 @@
+proc/dupa()
+	world << "Hello"
+	return list(1, 2, "3")
+
+
 mob/Login()
-	if (0) world << 1
-	else if(1) world << 2
-	else world << 3
+	for(var/mob/M as anything in dupa())
+		world << M

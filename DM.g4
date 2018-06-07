@@ -229,7 +229,7 @@ RIGHT_SHIFT_ASSIGN : '>>=';
 
 SEMICOLON : ';';
 
-IDENTIFIER: [_a-zA-Z][_a-zA-Z0-9]*;
+NAME: [_a-zA-Z][_a-zA-Z0-9]*;
 
 STRING_LITERAL : SHORT_STRING | LONG_STRING;
 ICON_PATH : '\'' (~["\\\r\n\f])* '\'';
@@ -313,7 +313,7 @@ UNKNOWN_CHAR
 
 
 /* parser rules */
-startRule: (var_stmt | classdef | NEWLINE)*;
+startRule: (var_stmt | objdef | NEWLINE)*;
 
 objdef : funcdef | classdef;
 
@@ -324,19 +324,28 @@ var_stmt
  | 'var' '/' var_path
  ;
 var_path
- : IDENTIFIER NEWLINE INDENT var_path+ DEDENT
- | IDENTIFIER '/' var_path
+ : NAME NEWLINE INDENT var_path+ DEDENT
+ | NAME '/' var_path
  | vardef NEWLINE
  ;
 vardef
- :  IDENTIFIER ('=' value)?;
+ :  NAME ('=' value)?;
 
+
+/*
+can be used in for loop for example
+*/
+inline_var_stmt: 'var' '/' inline_var_path;
+inline_var_path
+ : NAME '/' inline_var_path
+ | vardef
+ ;
 
 
 
 classdef
- : IDENTIFIER NEWLINE INDENT objdef+ DEDENT
- | IDENTIFIER '/' objdef
+ : NAME NEWLINE INDENT objdef+ DEDENT
+ | NAME '/' objdef
  ;
 
 funcdef
@@ -344,9 +353,9 @@ funcdef
  | (func_type '/')? func_header
  ;
 func_type: 'proc' | 'verb';
-func_header: IDENTIFIER '(' ')' stmt_block;
+func_header: NAME '(' ')' suite;
 
-stmt_block: NEWLINE INDENT stmt+ DEDENT;
+suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT;
 
 
 stmt: simple_stmt | compound_stmt;
@@ -354,21 +363,22 @@ stmt: simple_stmt | compound_stmt;
 simple_stmt: small_stmt NEWLINE;
 small_stmt: var_stmt | flow_stmt | expr;
 
-set_stmt: 'set' IDENTIFIER ('=' | 'in') expr;
+set_stmt: 'set' NAME ('=' | 'in') expr;
 flow_stmt: set_stmt | break_stmt | continue_stmt | return_stmt;
 
 
-compound_stmt: if_stmt;
+compound_stmt: if_stmt | dowhile_stmt | while_stmt | for_stmt | foreach_stmt;
 
 
 
 
+if_stmt: 'if' '(' expr ')' suite ('else' 'if' '(' expr ')' suite)* ('else' suite)?;
+dowhile_stmt: 'do' suite 'while' '(' expr ')';
+while_stmt: 'while' '(' expr ')' suite;
 
-if_stmt
- : 'if' '(' expr ')' stmt_block ('else' 'if' '(' expr ')' stmt_block)* ('else' stmt_block)?
- ;
- //('else' 'if' '(' expr ')' NEWLINE)* ('else'  suite)?
- //|
+
+for_stmt: 'for' '(' ((expr|inline_var_stmt)? (','|';') expr? (','|';') expr?)? ')' suite;
+foreach_stmt: 'for' '(' (inline_var_stmt|NAME) ('as' NAME)? ('in' expr)? ')' suite;
 
 break_stmt: 'break';
 continue_stmt: 'continue';
@@ -424,6 +434,7 @@ expressions
 
 expr
     : '(' expr ')' #bracketExpression
+    | expr trailer  #trailerExpression
     | ('~' | '!' | '-' | '++' | '--') expr #oneArgExpression
     | '**' expr #powerExpression
     | expr ('*' | '/' | '%') expr #multExpression
@@ -439,7 +450,11 @@ expr
     | value #valExpression
     ;
 
-value: STRING_LITERAL | ICON_PATH | NUMBER | IDENTIFIER;
+trailer: '(' (arglist)? ')' | '[' expr ']' | '.' NAME;
+arglist: expr (',' expr)*  (',')?;
+
+
+value: STRING_LITERAL | ICON_PATH | NUMBER | NAME;
 
 
 
